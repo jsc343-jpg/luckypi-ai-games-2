@@ -85,9 +85,12 @@ interface SyncResponse {
   config: GameConfig;
   announcements: AnnouncementPublic[];
   inbox: InboxItem[];
+  adminCandidate?: boolean;
+  adminReset?: number;
 }
 
 interface GameContextValue {
+  adminCandidate: boolean | null;
   ready: boolean;
   saveFailed: boolean;
   uid: string;
@@ -376,7 +379,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       refreshInterval: 45000,
       dedupingInterval: 8000,
       revalidateOnFocus: true,
-      onSuccess: (res) => applyInbox(res.inbox ?? []),
+      onSuccess: (res) => {
+        applyInbox(res.inbox ?? []);
+        if (typeof res.adminReset === "number") {
+          const pts = res.adminReset;
+          update((s) => ({ ...s, profile: { ...s.profile, points: pts } }));
+          toast(tr("管理員每日積分已重置", "Admin daily points reset"), {
+            description: pts.toLocaleString(),
+          });
+        }
+      },
     },
   );
 
@@ -916,6 +928,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     giftItem,
     giftsLeft,
     syncNow,
+    adminCandidate: sync ? Boolean(sync.adminCandidate) : null,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

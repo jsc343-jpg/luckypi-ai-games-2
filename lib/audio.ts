@@ -16,7 +16,11 @@ export type SfxKind =
   | "heal"
   | "horn"
   | "ko"
-  | "summon";
+  | "summon"
+  | "step"
+  | "stepSand"
+  | "stepArena"
+  | "clash";
 
 export type MusicTheme = "war" | "gun" | "brawl" | "calm";
 
@@ -152,6 +156,23 @@ export function playSfx(kind: SfxKind, enabled: boolean) {
     case "ko":
       tone(300, 0.4, "square", 0.1, 0, 60);
       noise(0.3, 0.18, 0, 1200);
+      break;
+    case "step":
+      noise(0.07, 0.07, 0, 900);
+      tone(110, 0.07, "sine", 0.08, 0, 70);
+      break;
+    case "stepSand":
+      noise(0.1, 0.09, 0, 3200, 700);
+      tone(90, 0.06, "sine", 0.05, 0, 60);
+      break;
+    case "stepArena":
+      noise(0.06, 0.08, 0, 2400, 400);
+      tone(130, 0.08, "triangle", 0.08, 0, 80);
+      break;
+    case "clash":
+      noise(0.18, 0.18, 0, 12000, 3000);
+      tone(1400, 0.25, "triangle", 0.06, 0, 900);
+      tone(2100, 0.2, "sine", 0.04, 0.01, 1500);
       break;
     case "miss":
       tone(160, 0.2, "sawtooth", 0.07);

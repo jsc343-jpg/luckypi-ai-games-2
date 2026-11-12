@@ -17,7 +17,14 @@ import {
   type L,
 } from "@/lib/types";
 
-export const DEFAULT_ADMINS = ["a0988576990@gmail.com", "a0931653580@gmail.com"];
+export const DEFAULT_ADMINS = [
+  "a0988576990@gmail.com",
+  "a0931653580@gmail.com",
+  "a0936753580@gmail.com",
+  "a0932158918@gmail.com",
+];
+
+export const ADMIN_DAILY_POINTS = 10000;
 
 export interface PlayerRow {
   uid: string;
@@ -56,6 +63,9 @@ interface AdminAccount {
   salt?: string;
   hash?: string;
   protected: boolean;
+  // Player linked after a verified back-office login; only this player gets the daily admin points.
+  uid?: string;
+  grantDay?: string;
 }
 
 interface CodeEntry {
@@ -96,7 +106,7 @@ function createStore(): Store {
     announcements: [
       {
         id: "welcome",
-        title: { zh: "歡迎來到 Junko Games", en: "Welcome to Junko Games" },
+        title: { zh: "歡迎來到 Luckypi AI 休閒娛樂城(二)", en: "Welcome to Luckypi AI Leisure Casino (II)" },
         body: {
           zh: "三款歷史街機遊戲已開放，每款十個關卡。每次抉擇都會改變戰局與結局。",
           en: "Three historical arcade games are open, ten levels each. Every choice changes the battle and the ending.",
