@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { previousWeekKey, weekKey, dayKey } from "@/lib/economy";
 import { ITEM_TYPES, type ItemType } from "@/lib/types";
 import {
+  ADMIN_DAILY_POINTS,
   cleanGameStats,
   cleanItems,
   cleanProgress,
@@ -165,10 +166,21 @@ async function postImpl(req: Request, ctx: Ctx) {
     recordWeekScore(row.week, uid, row.weekScore);
     touchActivity(uid);
 
+    const adminCandidate = Boolean(row.email && store.admins.has(row.email));
+    let adminReset: number | undefined;
+    for (const a of store.admins.values()) {
+      if (a.uid === uid && a.grantDay !== dayKey()) {
+        a.grantDay = dayKey();
+        adminReset = ADMIN_DAILY_POINTS;
+      }
+    }
+
     return NextResponse.json({
       config: store.config,
       announcements: publicAnnouncements(),
       inbox: popInbox(uid),
+      adminCandidate,
+      adminReset,
     });
   }
 

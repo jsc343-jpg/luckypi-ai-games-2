@@ -10,7 +10,7 @@ import { DIFFICULTIES, type Difficulty } from "@/lib/types";
 import { LANGUAGES } from "@/lib/languages";
 
 export default function SettingsPage() {
-  const { tr, profile, setSettings, setLang, lang, username, saveFailed, config } = useGame();
+  const { tr, profile, setSettings, setLang, lang, username, saveFailed, config, adminCandidate } = useGame();
   const s = profile.settings;
 
   const toggles = [
@@ -106,12 +106,14 @@ export default function SettingsPage() {
             <Link href="/">{tr("返回首頁", "Home")}</Link>
           </Button>
         </div>
-        <Link
-          href="/admin"
-          className="self-center text-xs text-muted-foreground underline-offset-4 hover:underline"
-        >
-          {tr("商家管理後台", "Merchant admin")}
-        </Link>
+        <Button asChild variant="outline">
+          <Link href="/art-lab">{tr("角色圖試作頁", "Character art lab")}</Link>
+        </Button>
+        {adminCandidate && (
+          <Button asChild variant="outline">
+            <Link href="/admin">{tr("管理後台（需再次驗證）", "Admin console (re-verify required)")}</Link>
+          </Button>
+        )}
       </PageBody>
     </>
   );

@@ -24,9 +24,9 @@ const notoSerif = Noto_Serif_TC({
 });
 
 export const metadata: Metadata = {
-  title: "Junko Games",
+  title: "Luckypi AI 休閒娛樂城(二)",
   description:
-    "Junko Games: historical arcade adventures where every choice changes the battle.",
+    "Luckypi AI 休閒娛樂城(二): historical arcade adventures where every choice changes the battle.",
     generator: 'v0.app'
 };
 

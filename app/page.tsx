@@ -28,7 +28,7 @@ export default function HomePage() {
   const ticker =
     announcements.length > 0
       ? announcements.slice(0, 5).map((a) => pick(a.title))
-      : [tr("歡迎來到 Junko Games", "Welcome to Junko Games")];
+      : [tr("歡迎來到 Luckypi AI 休閒娛樂城(二)", "Welcome to Luckypi AI Leisure Casino (II)")];
 
   const notes = [
     tr("歷史人物與事件均經戲劇化改編，並非史實紀錄。", "Historical figures and events are dramatized and are not factual records."),
@@ -50,8 +50,8 @@ export default function HomePage() {
     <div className="home-theme min-h-dvh">
       <header className="mx-auto flex w-full max-w-xl items-center gap-3 px-4 py-3">
         <PiLogo className="size-9 text-lg" />
-        <p className="font-display min-w-0 flex-1 truncate text-center text-xl font-black tracking-widest text-primary">
-          Junko Games
+        <p className="font-display min-w-0 flex-1 text-balance text-center text-sm font-black leading-tight tracking-wide text-primary sm:text-base">
+          Luckypi AI 休閒娛樂城(二)
         </p>
         <LanguageButton />
       </header>
@@ -86,8 +86,8 @@ export default function HomePage() {
           <SectionTitle>{tr("創建主旨", "Why we built this")}</SectionTitle>
           <p className="leading-relaxed text-pretty">
             {tr(
-              "Junko Games 以歷史人物為背景，把忠義、勇氣、策略、求生與自由，化為可玩的街機挑戰。玩家在娛樂中練習判斷風險、承擔後果與重新出發。",
-              "Junko Games takes historical figures as its backdrop and turns loyalty, courage, strategy, survival, and freedom into playable arcade challenges. Players practice weighing risk, owning consequences, and starting over.",
+              "Luckypi AI 休閒娛樂城(二) 以歷史人物為背景，把忠義、勇氣、策略、求生與自由，化為可玩的街機挑戰。玩家在娛樂中練習判斷風險、承擔後果與重新出發。",
+              "Luckypi AI Leisure Casino (II) takes historical figures as its backdrop and turns loyalty, courage, strategy, survival, and freedom into playable arcade challenges. Players practice weighing risk, owning consequences, and starting over.",
             )}
           </p>
           <p className="leading-relaxed text-pretty text-muted-foreground">

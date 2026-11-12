@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         prompt:
           `Translate each UI string in the JSON array below from English into ${target}. ` +
           `This is for a mobile game app about historical heroes; keep names of people, ` +
-          `"Pi", "Junko Games" and numbers as they are, and keep line breaks and punctuation style. ` +
+          `"Pi", "Luckypi AI" and numbers as they are, and keep line breaks and punctuation style. ` +
           `Reply with ONLY a JSON array of strings, the same length and order as the input.\n\n` +
           JSON.stringify(missing.map((m) => m.t)),
       });

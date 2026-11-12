@@ -13,6 +13,7 @@ import {
   verifyPassword,
 } from "@/lib/server/store";
 import { dbStatus, loadStore, saveStore } from "@/lib/server/persist";
+import { getResendFrom, getResendKey } from "@/lib/server/resend-key";
 
 type Ctx = { params: Promise<{ action: string }> };
 
@@ -134,10 +135,19 @@ function sessionResponse(email: string, cred?: string) {
   return res;
 }
 
+function linkPlayer(email: string, rawUid: unknown) {
+  const uid = str(rawUid, 120);
+  if (!uid) return;
+  const admins = getStore().admins;
+  for (const a of admins.values()) if (a.uid === uid) a.uid = undefined;
+  const account = admins.get(email);
+  if (account) account.uid = uid;
+}
+
 let lastMailError = "";
 
 async function sendCode(email: string, code: string): Promise<boolean> {
-  const key = resendKey();
+  const key = await getResendKey();
   lastMailError = "";
   if (!key) {
     lastMailError = "RESEND_API_KEY missing";
@@ -148,9 +158,9 @@ async function sendCode(email: string, code: string): Promise<boolean> {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.ADMIN_MAIL_FROM ?? "Junko Games <onboarding@resend.dev>",
+        from: await getResendFrom(),
         to: [email],
-        subject: "Junko Games verification code",
+        subject: "Luckypi AI Leisure Casino (II) verification code",
         text: `Your verification code is ${code}. It expires in 10 minutes.`,
       }),
     });
@@ -310,7 +320,7 @@ async function handleGet(req: Request, ctx: Ctx) {
         protected: a.protected,
       })),
       me: email,
-      emailConfigured: Boolean(resendKey()),
+      emailConfigured: Boolean(await getResendKey()),
     });
   }
 
@@ -357,6 +367,7 @@ async function handlePost(req: Request, ctx: Ctx) {
     account.salt = salt;
     account.hash = hash;
     store.loginFails.delete(email);
+    linkPlayer(email, body.uid);
     return sessionResponse(email, credentialToken(email, salt, hash));
   }
 
@@ -382,6 +393,7 @@ async function handlePost(req: Request, ctx: Ctx) {
       }
     }
     store.loginFails.delete(email);
+    linkPlayer(email, body.uid);
     return sessionResponse(email);
   }
 
