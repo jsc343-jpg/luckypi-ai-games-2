@@ -24,6 +24,216 @@ const MSG: Record<string, string> = {
   protected: "此帳號無法移除",
 };
 
+interface FalKeyInfo {
+  hasKey: boolean;
+  source: "env" | "admin" | "none";
+  last4: string | null;
+  persistent: boolean;
+  canStore: boolean;
+}
+
+const KEY_MSG: Record<string, string> = {
+  "invalid-key": "金鑰格式不正確，請完整貼上，不要有空格",
+  "no-secret": "伺服器缺少加密用的設定，無法儲存",
+  "save-failed": "儲存失敗，請再試一次",
+  "not-admin": "請重新登入管理員",
+};
+
+function FalKeySection() {
+  const { data, mutate } = useSWR("adm-fal-key", () => getJson<FalKeyInfo>("/api/admin/fal-key"));
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fail = (e: unknown) => toast.error(KEY_MSG[errorReason(e)] ?? "操作失敗");
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="font-black">Fal AI 金鑰</h2>
+      {data && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant={data.hasKey ? "default" : "outline"}>{data.hasKey ? "已設定" : "尚未設定"}</Badge>
+          {data.source === "env" && <span className="text-muted-foreground">來源：專案環境變數</span>}
+          {data.source === "admin" && <span className="text-muted-foreground">來源：後台儲存（結尾 {data.last4}）</span>}
+        </div>
+      )}
+      {data && data.source === "admin" && !data.persistent && (
+        <p className="text-xs text-destructive">目前沒有連接資料庫，金鑰只存在記憶體，伺服器重啟後需要重新填寫。</p>
+      )}
+      {data && data.source === "env" && (
+        <p className="text-xs text-muted-foreground">專案環境變數的優先權較高，後台儲存的金鑰會被它蓋過。</p>
+      )}
+      <Input
+        type="password"
+        autoComplete="off"
+        placeholder="貼上 Fal 金鑰"
+        aria-label="Fal 金鑰"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <Button
+          disabled={saving || value.trim().length < 20}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await postJson("/api/admin/fal-key", { key: value });
+              setValue("");
+              await mutate();
+              toast.success("金鑰已儲存");
+            } catch (e) {
+              fail(e);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          儲存金鑰
+        </Button>
+        {data?.source === "admin" && (
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                await postJson("/api/admin/fal-key", { action: "clear" });
+                await mutate();
+                toast.success("已移除後台金鑰");
+              } catch (e) {
+                fail(e);
+              }
+            }}
+          >
+            移除
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">金鑰經加密後只存在伺服器，畫面上只會顯示結尾 4 碼，不會再次顯示完整內容。</p>
+    </section>
+  );
+}
+
+interface ResendInfo {
+  hasKey: boolean;
+  source: "env" | "admin" | "none";
+  last4: string | null;
+  from: string | null;
+  fromSource: "env" | "admin" | "none";
+  persistent: boolean;
+  canStore: boolean;
+}
+
+const RESEND_MSG: Record<string, string> = {
+  "invalid-key": "Resend 金鑰格式不正確，應以 re_ 開頭，請完整貼上，不要有空格",
+  "invalid-from": "寄件者格式不正確，例如：Luckypi <no-reply@你的網域.com>",
+  "no-secret": "伺服器缺少加密用的設定，無法儲存",
+  "save-failed": "儲存失敗，請再試一次",
+  "not-admin": "請重新登入管理員",
+  "no-key": "尚未設定 Resend 金鑰",
+  "send-failed": "寄送失敗，請檢查金鑰與寄件者網域",
+  network: "連不上 Resend，請稍後再試",
+};
+
+function ResendKeySection() {
+  const { data, mutate } = useSWR("adm-resend-key", () => getJson<ResendInfo>("/api/admin/resend-key"));
+  const [key, setKey] = useState("");
+  const [from, setFrom] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const fail = (e: unknown) => toast.error(RESEND_MSG[errorReason(e)] ?? "操作失敗");
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="font-black">Resend 寄信金鑰</h2>
+      {data && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant={data.hasKey ? "default" : "outline"}>{data.hasKey ? "已設定" : "尚未設定"}</Badge>
+          {data.source === "env" && <span className="text-muted-foreground">來源：專案環境變數</span>}
+          {data.source === "admin" && <span className="text-muted-foreground">來源：後台儲存（結尾 {data.last4}）</span>}
+        </div>
+      )}
+      {data?.from && <p className="text-xs text-muted-foreground">目前寄件者：{data.from}</p>}
+      {data && (data.source === "admin" || data.fromSource === "admin") && !data.persistent && (
+        <p className="text-xs text-destructive">目前沒有連接資料庫，設定只存在記憶體，伺服器重啟後需要重新填寫。</p>
+      )}
+      {data?.source === "env" && (
+        <p className="text-xs text-muted-foreground">專案環境變數的優先權較高，後台儲存的金鑰會被它蓋過。</p>
+      )}
+      <Input
+        type="password"
+        autoComplete="off"
+        placeholder="貼上 Resend 金鑰（re_ 開頭）"
+        aria-label="Resend 金鑰"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+      />
+      <Input
+        type="text"
+        autoComplete="off"
+        placeholder="寄件者（選填），例如 Luckypi <no-reply@你的網域.com>"
+        aria-label="寄件者"
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={busy || (key.trim().length < 10 && from.trim().length < 5)}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await postJson("/api/admin/resend-key", { key, from });
+              setKey("");
+              setFrom("");
+              await mutate();
+              toast.success("已儲存");
+            } catch (e) {
+              fail(e);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          儲存
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={busy || !data?.hasKey}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const res = await postJson<{ to?: string }>("/api/admin/resend-key", { action: "test" });
+              toast.success(`測試信已寄到 ${res.to ?? "你的信箱"}`);
+            } catch (e) {
+              fail(e);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          寄測試信給我
+        </Button>
+        {data?.source === "admin" && (
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                await postJson("/api/admin/resend-key", { action: "clear" });
+                await mutate();
+                toast.success("已移除後台設定");
+              } catch (e) {
+                fail(e);
+              }
+            }}
+          >
+            移除
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        金鑰經加密後只存在伺服器，畫面上只會顯示結尾 4 碼。未驗證寄信網域時，Resend 只能寄給你的 Resend 帳號本人的信箱。
+      </p>
+    </section>
+  );
+}
+
 export function SystemPanel() {
   const { data, mutate } = useSWR("adm-system", () => getJson<SystemInfo>("/api/admin/system"));
   const [newAdmin, setNewAdmin] = useState("");
@@ -132,6 +342,10 @@ export function SystemPanel() {
           </Button>
         </div>
       </section>
+
+      <FalKeySection />
+
+      <ResendKeySection />
 
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
         <h2 className="mb-1 font-black text-foreground">系統狀態</h2>

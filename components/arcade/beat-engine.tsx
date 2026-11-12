@@ -253,7 +253,7 @@ export function BeatEngine(props: Props) {
       if (t.guard > 0 && type === "hand") {
         dmg *= 0.12;
         burst(t.x + t.dir * 8, groundY(t.z) - 26, "#fff2b0", 6);
-        sfx("hit");
+        sfx("clash");
         text(t.x, groundY(t.z) - 64, tr0("格擋", "Block"), "#f0d078");
       } else if (t.guard > 0 && type === "foot") {
         t.guard = 0;
@@ -639,7 +639,13 @@ export function BeatEngine(props: Props) {
       if (dx) p.dir = dx > 0 ? 1 : -1;
       p.x = clamp(p.x + dx * p.speed * spd * dt, 10, G.worldW - 10);
       p.z = clamp(p.z + dz * 0.75 * spd * dt, 0.02, 1);
-      if (p.moving) p.walkT += dt;
+      if (p.moving) {
+        const before = Math.floor(p.walkT * 3.4);
+        p.walkT += dt;
+        if (p.h <= 0.1 && Math.floor(p.walkT * 3.4) !== before) {
+          sfx(gameId === "xiangyu" ? "step" : gameId === "gladiator" ? "stepArena" : "stepSand");
+        }
+      }
       if (k.jump) {
         k.jump = false;
         if (p.h <= 0.1 && !p.crouch) {

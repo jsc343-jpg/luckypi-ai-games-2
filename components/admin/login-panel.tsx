@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useGame } from "@/contexts/game-context";
 import { ApiError, errorReason, postJson } from "@/lib/client-api";
 
 const MESSAGES: Record<string, string> = {
@@ -60,7 +61,8 @@ function PasswordField({
 
 export function LoginPanel({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
+  const { uid, profile } = useGame();
+  const [email, setEmail] = useState(profile.account?.pi?.email || profile.account?.trial?.email || "");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -90,7 +92,7 @@ export function LoginPanel({ onDone }: { onDone: () => void }) {
   const login = async () => {
     setBusy(true);
     try {
-      await postJson("/api/admin/login", { email, password });
+      await postJson("/api/admin/login", { email, password, uid });
       onDone();
     } catch (e) {
       fail(e);
@@ -110,7 +112,10 @@ export function LoginPanel({ onDone }: { onDone: () => void }) {
       setCodeSent(true);
       setDevCode(res.devCode ?? null);
       if (res.sent === false) {
-        const text = `驗證碼寄送失敗：${res.mailError ?? "未知原因"}`;
+        const limited = /403|own email|testing emails|verify a domain/i.test(res.mailError ?? "");
+        const text = limited
+          ? "驗證碼寄送失敗：寄信服務目前只能寄給 Resend 帳號本人的信箱，其他管理員需先在 Resend 驗證寄信網域。暫時可用管理員金鑰登入。"
+          : `驗證碼寄送失敗：${res.mailError ?? "未知原因"}`;
         setProblem(text);
         toast.error(text);
       } else {
@@ -126,7 +131,7 @@ export function LoginPanel({ onDone }: { onDone: () => void }) {
   const setNewPassword = async () => {
     setBusy(true);
     try {
-      await postJson("/api/admin/set-password", { email, code, password });
+      await postJson("/api/admin/set-password", { email, code, password, uid });
       toast.success("密碼已設定");
       onDone();
     } catch (e) {
@@ -140,7 +145,7 @@ export function LoginPanel({ onDone }: { onDone: () => void }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-5 px-4 py-10">
       <div>
         <h1 className="text-2xl font-black">商家管理後台</h1>
-        <p className="text-sm text-muted-foreground">City&apos;s Games(2) · 僅限指定管理員信箱</p>
+        <p className="text-sm text-muted-foreground">Luckypi AI 休閒娛樂城(二) · 僅限指定管理員信箱</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
