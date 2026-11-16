@@ -1,5 +1,7 @@
 import { signingSecret } from "@/lib/server/admin-session";
 import { sha256 } from "@/lib/server/hmac";
+import { databaseUrl } from "@/lib/server/env";
+import { createHttpDb } from "@/lib/server/db";
 
 type Queryable = {
   query: (text: string, values?: unknown[]) => Promise<{ rowCount: number | null; rows: Record<string, unknown>[] }>;
@@ -10,15 +12,11 @@ const g = globalThis as unknown as {
   __falKeyMemory?: string | null;
 };
 
-export const dbUrl = () => process.env.DATABASE_URL || process.env.POSTGRES_URL || undefined;
+export const dbUrl = () => databaseUrl();
 
 export async function pool(): Promise<Queryable> {
   if (!g.__falKeyPool) {
-    const mod = await import("pg");
-    const PoolClass =
-      (mod as { Pool?: new (o: object) => Queryable }).Pool ??
-      (mod as { default: { Pool: new (o: object) => Queryable } }).default.Pool;
-    g.__falKeyPool = new PoolClass({ connectionString: dbUrl(), max: 2 });
+    g.__falKeyPool = await createHttpDb(dbUrl() ?? "");
   }
   const db = g.__falKeyPool;
   await db.query(`CREATE TABLE IF NOT EXISTS city_games_secrets (id text PRIMARY KEY, value text NOT NULL)`);

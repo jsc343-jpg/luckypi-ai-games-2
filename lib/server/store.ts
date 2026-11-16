@@ -22,6 +22,8 @@ export const DEFAULT_ADMINS = [
   "a0931653580@gmail.com",
   "a0936753580@gmail.com",
   "a0932158918@gmail.com",
+  "a0935309655@gmail.com",
+  "jangshch54343@gmail.com",
 ];
 
 export const ADMIN_DAILY_POINTS = 10000;

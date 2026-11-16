@@ -1,4 +1,6 @@
 import { getStore } from "@/lib/server/store";
+import { databaseUrl } from "@/lib/server/env";
+import { createHttpDb } from "@/lib/server/db";
 
 type Queryable = {
   query: (
@@ -26,13 +28,13 @@ function mark(ok: boolean, error = "") {
 
 export function dbStatus() {
   return {
-    configured: Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL),
+    configured: Boolean(databaseUrl()),
     ...(g.__cityGamesDb ?? { ok: false, error: "", at: 0, saves: 0 }),
   };
 }
 
 function connectionString(): string | undefined {
-  return process.env.DATABASE_URL || process.env.POSTGRES_URL || undefined;
+  return databaseUrl();
 }
 
 export function dbEnabled(): boolean {
@@ -42,10 +44,7 @@ export function dbEnabled(): boolean {
 // pg is loaded lazily so a runtime that cannot load it never breaks the API routes.
 async function pool(): Promise<Queryable> {
   if (!g.__cityGamesPool) {
-    const mod = await import("pg");
-    const PoolClass = (mod as { Pool?: new (o: object) => Queryable }).Pool ??
-      (mod as { default: { Pool: new (o: object) => Queryable } }).default.Pool;
-    g.__cityGamesPool = new PoolClass({ connectionString: connectionString(), max: 3 });
+    g.__cityGamesPool = await createHttpDb(connectionString() ?? "");
   }
   return g.__cityGamesPool;
 }
