@@ -3,6 +3,7 @@ import { fal } from "@fal-ai/client";
 import { list, put } from "@vercel/blob";
 import { adminEmailFromRequest } from "@/lib/server/admin-session";
 import { getFalKey } from "@/lib/server/fal-key";
+import { getBlobToken } from "@/lib/server/blob-key";
 import {
   KEYFRAME_PROMPT,
   MAX_SUBMITS_PER_INSTANCE,
@@ -39,10 +40,11 @@ function isTrustedImage(url: string): boolean {
 export async function GET(req: Request) {
   if (!adminEmailFromRequest(req)) return fail("not-admin", 401);
   const hasKey = Boolean(await getFalKey());
-  const hasBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  const token = (await getBlobToken()) ?? undefined;
+  const hasBlob = Boolean(token);
   if (!hasBlob) return NextResponse.json({ hasKey, hasBlob, keyframe: null, clips: [] });
 
-  const { blobs } = await list({ prefix: PREFIX });
+  const { blobs } = await list({ prefix: PREFIX, token });
   const keyframes = blobs.filter((b) => b.pathname.startsWith(`${PREFIX}keyframe-`));
   keyframes.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
   const clips = blobs
@@ -58,7 +60,8 @@ export async function POST(req: Request) {
   if (!adminEmailFromRequest(req)) return fail("not-admin", 401);
   const falKey = await getFalKey();
   if (!falKey) return fail("missing-key", 503);
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return fail("missing-blob", 503);
+  const token = await getBlobToken();
+  if (!token) return fail("missing-blob", 503);
 
   const body = (await req.json().catch(() => null)) as {
     action?: string;
@@ -81,6 +84,7 @@ export async function POST(req: Request) {
       const image = await fetch(sourceUrl);
       const blob = await put(`${PREFIX}keyframe-${Date.now()}.png`, await image.blob(), {
         access: "public",
+        token,
         contentType: "image/png",
       });
       return NextResponse.json({ url: blob.url });
@@ -113,6 +117,7 @@ export async function POST(req: Request) {
       const video = await fetch(videoUrl);
       const blob = await put(`${PREFIX}clips/${clip.id}__${model.id}__${Date.now()}.mp4`, await video.blob(), {
         access: "public",
+        token,
         contentType: "video/mp4",
       });
       return NextResponse.json({ status: "COMPLETED", url: blob.url });
