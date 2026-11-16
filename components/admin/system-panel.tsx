@@ -234,6 +234,197 @@ function ResendKeySection() {
   );
 }
 
+interface BlobInfo {
+  hasKey: boolean;
+  source: "env" | "admin" | "none";
+  last4: string | null;
+  persistent: boolean;
+  canStore: boolean;
+}
+
+const BLOB_MSG: Record<string, string> = {
+  "invalid-key": "Blob 金鑰格式不正確，應以 vercel_blob_rw_ 開頭，請完整貼上，不要有空格",
+  "no-secret": "伺服器缺少加密用的設定，無法儲存",
+  "save-failed": "儲存失敗，請再試一次",
+  "not-admin": "請重新登入管理員",
+};
+
+function BlobKeySection() {
+  const { data, mutate } = useSWR("adm-blob-key", () => getJson<BlobInfo>("/api/admin/blob-key"));
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const fail = (e: unknown) => toast.error(BLOB_MSG[errorReason(e)] ?? "操作失敗");
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="font-black">Blob 檔案儲存金鑰</h2>
+      {data && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant={data.hasKey ? "default" : "outline"}>{data.hasKey ? "已設定" : "尚未設定"}</Badge>
+          {data.source === "env" && <span className="text-muted-foreground">來源：專案環境變數</span>}
+          {data.source === "admin" && <span className="text-muted-foreground">來源：後台儲存（結尾 {data.last4}）</span>}
+        </div>
+      )}
+      {data && data.source === "admin" && !data.persistent && (
+        <p className="text-xs text-destructive">目前沒有連接資料庫，金鑰只存在記憶體，伺服器重啟後需要重新填寫。</p>
+      )}
+      {data?.source === "env" && (
+        <p className="text-xs text-muted-foreground">專案環境變數的優先權較高，後台儲存的金鑰會被它蓋過。</p>
+      )}
+      <Input
+        type="password"
+        autoComplete="off"
+        placeholder="貼上 Blob 金鑰（vercel_blob_rw_ 開頭）"
+        aria-label="Blob 金鑰"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <Button
+          disabled={saving || !value.trim().startsWith("vercel_blob_rw_")}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await postJson("/api/admin/blob-key", { key: value });
+              setValue("");
+              await mutate();
+              toast.success("金鑰已儲存");
+            } catch (e) {
+              fail(e);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          儲存金鑰
+        </Button>
+        {data?.source === "admin" && (
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                await postJson("/api/admin/blob-key", { action: "clear" });
+                await mutate();
+                toast.success("已移除後台金鑰");
+              } catch (e) {
+                fail(e);
+              }
+            }}
+          >
+            移除
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        這把金鑰必須來自「公開」的 Blob 儲存。影片買下來後會存到這裡，之後遊戲直接讀取，不再扣費。
+      </p>
+    </section>
+  );
+}
+
+interface DbCheck {
+  configured: boolean;
+  ok?: boolean;
+  detail?: string;
+  names: string[];
+}
+
+function DatabaseSection() {
+  const { data, mutate } = useSWR("adm-db-check", () => getJson<DbCheck>("/api/admin/db-check"));
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<DbCheck | null>(null);
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const shown = result ?? data;
+
+  const saveUrl = async () => {
+    setSaving(true);
+    try {
+      const res = await postJson<{ ok: boolean; detail?: string }>("/api/admin/db-url", { url });
+      if (res.ok) {
+        setUrl("");
+        setResult({ configured: true, ok: true, names: data?.names ?? [] });
+        toast.success("資料庫已連上。請把 Fal、Resend、Blob 金鑰各重新貼一次並儲存，才會存進資料庫");
+        await mutate();
+      } else {
+        setResult({ configured: false, ok: false, detail: res.detail, names: data?.names ?? [] });
+        toast.error("連線失敗，請檢查位址是否完整");
+      }
+    } catch (e) {
+      toast.error(errorReason(e) === "bad-url" ? "位址要以 postgresql:// 開頭" : "儲存失敗，請重新登入管理員");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <h2 className="font-black">資料庫連線（Neon）</h2>
+      {data && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant={data.configured ? "default" : "outline"}>{data.configured ? "已找到連線位址" : "找不到連線位址"}</Badge>
+          {result && result.ok !== undefined && (
+            <Badge variant={result.ok ? "default" : "destructive"}>{result.ok ? "連線成功" : "連線失敗"}</Badge>
+          )}
+        </div>
+      )}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        如果主機沒有把環境變數交給網站，可以在這裡貼上 Neon 的連線位址（postgresql:// 開頭）。位址只存在伺服器記憶體，不會顯示出來；伺服器重啟後要在這裡重新貼一次，金鑰與遊戲資料則會保留在資料庫裡。
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          type="password"
+          autoComplete="off"
+          placeholder="貼上資料庫連線位址（postgresql://…）"
+          aria-label="資料庫連線位址"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button disabled={saving || !url.trim()} onClick={saveUrl}>
+          連接資料庫
+        </Button>
+      </div>
+      {result?.detail && <p className="text-xs text-destructive">錯誤訊息：{result.detail}</p>}
+      <Button
+        variant="secondary"
+        className="self-start"
+        disabled={testing}
+        onClick={async () => {
+          setTesting(true);
+          try {
+            const res = await postJson<DbCheck>("/api/admin/db-check", {});
+            setResult(res);
+            await mutate();
+          } catch {
+            toast.error("測試失敗，請重新登入管理員");
+          } finally {
+            setTesting(false);
+          }
+        }}
+      >
+        測試資料庫連線
+      </Button>
+      <div className="text-xs text-muted-foreground">
+        <p className="mb-1">伺服器目前看得到的相關環境變數名稱（只列名稱，不顯示內容）：</p>
+        {shown && shown.names.length > 0 ? (
+          <ul className="flex flex-wrap gap-1">
+            {shown.names.map((n) => (
+              <li key={n}>
+                <Badge variant="outline" className="font-mono">
+                  {n}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>沒有任何相關的環境變數。請確認變數加在 luckypi-ai-games-2 專案，並且重新部署。</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function SystemPanel() {
   const { data, mutate } = useSWR("adm-system", () => getJson<SystemInfo>("/api/admin/system"));
   const [newAdmin, setNewAdmin] = useState("");
@@ -346,6 +537,10 @@ export function SystemPanel() {
       <FalKeySection />
 
       <ResendKeySection />
+
+      <BlobKeySection />
+
+      <DatabaseSection />
 
       <section className="rounded-xl border border-border bg-card p-4 text-sm leading-relaxed text-muted-foreground">
         <h2 className="mb-1 font-black text-foreground">系統狀態</h2>
